@@ -15,9 +15,11 @@
 # Ignore all logfiles and tempfiles.
 /log/*
 /tmp/*
+/out/*
 /result/*
 !/log/.keep
 !/tmp/.keep
+!/out/.keep
 !/result/.keep
 /sample*
 /old/*
