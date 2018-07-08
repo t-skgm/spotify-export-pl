@@ -16,11 +16,11 @@ class PlaylistFetcher
   end
 
   def playlist
-    @playlist ||= RSpotify::Playlist.find(@user_id, @pl_id)
+    @playlist ||= RSpotify::Playlist.find(user_id, pl_id)
   end
 
   def to_json
-    raise unless @authed
+    raise('Unauthorized tokens') unless @authed
     tracks = tracks_to_json(playlist.tracks)
     hashed = {
       name: playlist.name,
@@ -33,13 +33,21 @@ class PlaylistFetcher
     hashed.to_json
   end
 
+  def build_filename
+    "./out/#{playlist.name} (#{user_id}).json"
+  end
+
+  def save_json
+    File.open(build_filename, 'w') { |f| f.puts(to_json) }
+  end
+
   private
 
     def parse_pl_url(pl_url)
       pl_paths = URI.parse(pl_url).path.split('/')
-      user_id = pl_paths[pl_paths.find_index('user') + 1]
-      pl_id =   pl_paths[pl_paths.find_index('playlist') + 1]
-      [user_id, pl_id]
+      keys = ['user', 'playlist']
+      raise('Invalid spotify playlist url') unless keys.all? { |k| pl_paths.include?(k) }
+      keys.map { |k| pl_paths[pl_paths.index(k)&.next] }
     end
 
     def tracks_to_json(sf_tracks)
@@ -60,8 +68,15 @@ class PlaylistFetcher
     end
 end
 
-params = ARGV.getopts('u:', 'url')
-url = params['u'] || params['url']
+params = ARGV.getopts('u:', 'url', 'f', 'save-to-file')
+url = params['url'] || params['u']
+save_to_file = params['save-to-file'] || params['f']
 
 fetcher = PlaylistFetcher.new(pl_url: url)
-File.open("out/#{fetcher.user_id}_#{fetcher.pl_id}.json", 'w') { |f| f.puts(fetcher.to_json) }
+
+if save_to_file
+  fetcher.save_json
+  puts "saved playlist json to \"#{fetcher.build_filename}\""
+else
+  puts fetcher.to_json
+end
